@@ -1,3 +1,6 @@
+//For Compile: gcc main.c -o dungeon_crawler.exe
+//For Running: ./dungeon_crawler
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
