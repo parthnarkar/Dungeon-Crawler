@@ -1,221 +1,199 @@
-//For Compile: gcc main.c -o dungeon_crawler.exe
-//For Running: ./dungeon_crawler
+//PS D:\DSA Mini Project\dungeon-crawler> [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+//PS D:\DSA Mini Project\dungeon-crawler> ^C
+//PS D:\DSA Mini Project\dungeon-crawler> gcc -o dungeon_crawler main.c                           
+//PS D:\DSA Mini Project\dungeon-crawler> ./dungeon_crawler
+
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
+#include <string.h>
 
-#define MAX_ITEMS 10
-#define MAX_MONSTERS 5
-#define MAX_ROOMS 100
+// ANSI escape codes for coloring
+#define RED "\033[1;31m"
+#define GREEN "\033[1;32m"
+#define YELLOW "\033[1;33m"
+#define BLUE "\033[1;34m"
+#define RESET "\033[0m"
 
-typedef struct {
-    char name[30];
-    int health;
-    char loot[30];
-} Monster;
+// Constants for room probabilities
+#define EMPTY_ROOM_PROBABILITY 5
+#define ITEM_ROOM_PROBABILITY 40
+#define MONSTER_ROOM_PROBABILITY 40
 
-typedef struct {
-    char items[MAX_ITEMS][30];
-    int itemCount;
-} Inventory;
+// Constants for the game
+#define MAX_INVENTORY 10
+#define MAX_ITEMS 5
 
-typedef struct {
-    char description[100];
-    int hasMonster;
-    Monster monster;
-    int hasItem;
-    char item[30];
-} Room;
+// Global variables
+const char *itemDescriptions[MAX_ITEMS] = {
+    "Golden Sword 🗡️",
+    "Healing Potion 🧪",
+    "Magic Amulet ✨",
+    "Shield 🛡️",
+    "Ancient Scroll 📜"
+};
 
-// Function declarations
-void initInventory(Inventory *inventory);
-void displayInventory(Inventory *inventory);
-void collectItem(Inventory *inventory, const char *item);
-void attackMonster(Monster *monster, int *userHealth);
-void moveToDirection(Inventory *inventory, Room *currentRoom, int *userHealth, Room visitedRooms[], int *visitedRoomCount);
-void generateRandomRoom(Room *room, Room visitedRooms[], int visitedRoomCount);
-int isRoomRepeated(Room *newRoom, Room visitedRooms[], int visitedRoomCount);
-void copyRoom(Room *dest, Room *src);
+const char *inventory[MAX_INVENTORY];  // Change to const char* to avoid warnings
+int inventoryCount = 0;
+
+// Function prototypes
+void displayWelcomeMessage();
+void displayRoom();
+void displayMenu();
+void displayInventory(const char *inventory[], int inventoryCount);  // Change to const
+void movePlayer(int *playerHealth);
+void battle(int *playerHealth);
+void heal(int *playerHealth);
 
 // Main function
 int main() {
-    srand(time(0)); // Initialize random seed
+    srand(time(0));  // Seed for random number generation
+    int playerHealth = 100;
+    
+    displayWelcomeMessage();
+    displayRoom();
+    displayMenu();
 
-    // Initialize inventory
-    Inventory inventory;
-    initInventory(&inventory);
-
-    // Track visited rooms to avoid repetition
-    Room visitedRooms[MAX_ROOMS];
-    int visitedRoomCount = 0;
-
-    // Initial room
-    Room currentRoom;
-    generateRandomRoom(&currentRoom, visitedRooms, visitedRoomCount); // Generate first room
-    visitedRooms[visitedRoomCount++] = currentRoom; // Add first room to visited list
-
-    int userHealth = 100; // Player health
-
-    printf("***************************************\n");
-    printf("*         Welcome to Dungeon Crawler!         *\n");
-    printf("*  Prepare for an adventure filled with monsters and treasures! *\n");
-    printf("***************************************\n");
-
-    // Game loop
     while (1) {
-        printf("\n--- Current Room ---\n");
-        printf("%s\n", currentRoom.description);
-        if (currentRoom.hasMonster) {
-            printf("* A wild %s appears!\n", currentRoom.monster.name);
-        } else if (currentRoom.hasItem) {
-            printf("* You see a %s in the room.\n", currentRoom.item);
-        } else {
-            printf("* The room is empty.\n");
-        }
-        printf("--------------------\n");
+        printf("> ");
+        char choice;
+        scanf(" %c", &choice);
 
-        moveToDirection(&inventory, &currentRoom, &userHealth, visitedRooms, &visitedRoomCount);
+        switch (choice) {
+            case 'm':
+                movePlayer(&playerHealth);
+                break;
+            case 'i':
+                displayInventory(inventory, inventoryCount);
+                break;
+            case 'q':
+                printf(RED "Quitting game.\n" RESET);
+                exit(0);
+            default:
+                printf("Invalid option! Try again.\n");
+                break;
+        }
+
+        // Check if player health is above 0
+        if (playerHealth <= 0) {
+            printf(RED "You have died. Game Over!\n" RESET);
+            break;
+        }
     }
 
     return 0;
 }
 
-// Initialize the inventory
-void initInventory(Inventory *inventory) {
-    inventory->itemCount = 0;
+// Function to display welcome message
+void displayWelcomeMessage() {
+    printf(YELLOW "------------------------------------------------------------\n");
+    printf("|  *** Welcome to the Dungeon Adventure RPG Game! ***      |\n");
+    printf("------------------------------------------------------------" RESET "\n");
 }
 
-// Display the inventory
-void displayInventory(Inventory *inventory) {
-    printf("\n* Your Inventory\n");
-    for (int i = 0; i < inventory->itemCount; i++) {
-        printf(" - %s\n", inventory->items[i]);
-    }
-    if (inventory->itemCount == 0) {
-        printf(" * Inventory is empty.\n");
-    }
-}
+// Function to display the current room and randomly determine its contents
+void displayRoom() {
+    int roomType = rand() % 100;  // Random number between 0 and 99
 
-// Collect an item
-void collectItem(Inventory *inventory, const char *item) {
-    if (inventory->itemCount < MAX_ITEMS) {
-        strcpy(inventory->items[inventory->itemCount++], item);
-        printf("* You collected a %s!\n", item);
-    } else {
-        printf("* Inventory full! Cannot collect %s.\n", item);
-    }
-}
-
-// Attack a monster
-void attackMonster(Monster *monster, int *userHealth) {
-    printf("* You attack the %s!\n", monster->name);
-    monster->health -= 20; // Example damage dealt
-
-    if (monster->health > 0) {
-        printf("* The %s has %d health left.\n", monster->name, monster->health);
-        *userHealth -= 10; // Example damage taken
-        printf("* You take damage! Your health is now %d.\n", *userHealth);
-    } else {
-        printf("* You have defeated the %s!\n", monster->name);
-    }
-}
-
-// Move to a direction
-void moveToDirection(Inventory *inventory, Room *currentRoom, int *userHealth, Room visitedRooms[], int *visitedRoomCount) {
-    char action[30]; // Increased size to accommodate full input
-    printf("\n* Choose an action (a: attack, c: collect item, i: check inventory, m: move <direction>, q: quit): ");
-    scanf(" %[^\n]", action); // Allow multi-word input
-
-    if (strcmp(action, "a") == 0 && currentRoom->hasMonster) {
-        attackMonster(&currentRoom->monster, userHealth);
-        if (currentRoom->monster.health <= 0) {
-            collectItem(inventory, currentRoom->monster.loot); // Give loot after defeating the monster
-            currentRoom->hasMonster = 0; // Mark monster as defeated
+    printf(YELLOW "*******************************************************\n");
+    if (roomType < EMPTY_ROOM_PROBABILITY) {
+        printf("*    This room is empty.                              *\n");
+    } else if (roomType < EMPTY_ROOM_PROBABILITY + ITEM_ROOM_PROBABILITY) {
+        printf("*    You found an item!\n");
+        if (inventoryCount < MAX_INVENTORY) {
+            int itemIndex = rand() % MAX_ITEMS;
+            inventory[inventoryCount++] = itemDescriptions[itemIndex];  // No warning now
+            printf("*    Collected: %s\n", itemDescriptions[itemIndex]);
+        } else {
+            printf("*    Your inventory is full!\n");
         }
-    } else if (strcmp(action, "c") == 0 && currentRoom->hasItem) {
-        collectItem(inventory, currentRoom->item);
-        currentRoom->hasItem = 0; // Remove item from the room after collection
-    } else if (strcmp(action, "i") == 0) {
-        displayInventory(inventory);
-    } else if (strncmp(action, "m ", 2) == 0) { // Check if the command starts with 'm '
-        char direction[10];
-        sscanf(action, "m %s", direction); // Extract direction
-
-        // Random chance generation for the new room
-        generateRandomRoom(currentRoom, visitedRooms, *visitedRoomCount);
-        visitedRooms[(*visitedRoomCount)++] = *currentRoom; // Add to visited list
-    } else if (strcmp(action, "q") == 0) {
-        printf("* Thanks for playing!\n");
-        exit(0);
     } else {
-        printf("* Invalid action! Please choose again.\n");
+        printf("*    A fierce monster appears!                         *\n");
     }
+    printf("*******************************************************" RESET "\n");
 }
 
-// Generate a random room with 40% monster, 40% item, 10% empty, 10% no room
-void generateRandomRoom(Room *room, Room visitedRooms[], int visitedRoomCount) {
-    char *roomDescriptions[] = {
-        "A room with ancient stone carvings.",
-        "A dimly lit room with a strange glow.",
-        "A room with walls covered in moss.",
-        "A quiet room with a faint breeze.",
-        "A room with flickering lights."
-    };
-    
-    char *monsterNames[] = {"Goblin", "Orc", "Dragon", "Skeleton", "Zombie"};
-    char *itemNames[] = {"Health Potion", "Magic Sword", "Shield", "Gold Coin", "Treasure Chest"};
-
-    int randomChoice = rand() % 100; // Get a random number between 0-99
-    int descriptionIndex = rand() % 5; // Random room description
-
-    strcpy(room->description, roomDescriptions[descriptionIndex]); // Set a random description
-
-    if (randomChoice < 40) {
-        // Monster encounter
-        room->hasMonster = 1;
-        strcpy(room->monster.name, monsterNames[rand() % 5]);
-        room->monster.health = (rand() % 30) + 20; // Random health between 20 and 50
-        strcpy(room->monster.loot, itemNames[rand() % 5]); // Monster drops random loot
-        room->hasItem = 0; // No items in the room
-    } else if (randomChoice < 80) {
-        // Item in room
-        room->hasMonster = 0;
-        room->hasItem = 1;
-        strcpy(room->item, itemNames[rand() % 5]);
-    } else if (randomChoice < 90) {
-        // Empty room
-        room->hasMonster = 0;
-        room->hasItem = 0;
-    } else {
-        // No room (10% chance)
-        printf("* You move but find there's no room in that direction!\n");
-        strcpy(room->description, "A blocked path.");
-        room->hasMonster = 0;
-        room->hasItem = 0;
-    }
-
-    // Ensure no room repetition
-    while (isRoomRepeated(room, visitedRooms, visitedRoomCount)) {
-        generateRandomRoom(room, visitedRooms, visitedRoomCount); // Generate again if repeated
-    }
+// Function to show main menu with colored options
+void displayMenu() {
+    printf("------------------------------------------------------------\n");
+    printf("| " BLUE "m: [🚪 Move] " RESET "| " BLUE "i: [📦 Inventory] " RESET "| " BLUE "q: [❌ Quit] " RESET " |\n");
+    printf("------------------------------------------------------------\n");
 }
 
-// Check if the room description has been used before
-int isRoomRepeated(Room *newRoom, Room visitedRooms[], int visitedRoomCount) {
-    for (int i = 0; i < visitedRoomCount; i++) {
-        if (strcmp(newRoom->description, visitedRooms[i].description) == 0) {
-            return 1; // Room has been visited
+// Function to display the player's inventory
+void displayInventory(const char *inventory[], int inventoryCount) {  // Change to const
+    printf(YELLOW "Your Inventory:\n");
+    for (int i = 0; i < inventoryCount; i++) {
+        printf("[%d] %s\n", i + 1, inventory[i]);
+    }
+    printf(RESET "\n");
+}
+
+// Function to handle player movement and possible encounters
+void movePlayer(int *playerHealth) {  // Fix: Added playerHealth parameter
+    printf(GREEN "You moved to a new room.\n" RESET);
+    displayRoom();
+    battle(playerHealth);
+}
+
+// Function to handle battle logic
+void battle(int *playerHealth) {
+    int monsterHealth = rand() % 50 + 50;  // Monster health between 50 and 99
+    int attackCount = 0;
+    int healed = 0;  // To track if the player has healed during the battle
+
+    while (monsterHealth > 0) {
+        printf(RED "Monster's Health: %d | Your Health: %d\n" RESET, monsterHealth, *playerHealth);
+        printf(BLUE "Choose action: a - Attack, h - Heal\n" RESET);
+        char action;
+        scanf(" %c", &action);
+
+        if (action == 'h' && healed == 0) {
+            heal(playerHealth);
+            healed = 1;  // Mark that healing has been used
+        } else if (action == 'a') {
+            int damage = rand() % 20 + 10;  // Random damage between 10 and 29
+            monsterHealth -= damage;
+            printf(GREEN "You attack the monster for %d damage!\n" RESET, damage);
+            attackCount++;
+            if (monsterHealth <= 0) {
+                printf(GREEN "You defeated the monster!\n" RESET);
+                // Reward for defeating the monster
+                int itemIndex = rand() % MAX_ITEMS;
+                if (inventoryCount < MAX_INVENTORY) {
+                    inventory[inventoryCount++] = itemDescriptions[itemIndex];  // No warning now
+                    printf("You found a %s as a reward!\n", itemDescriptions[itemIndex]);
+                } else {
+                    printf("Your inventory is full! No reward collected.\n");
+                }
+                break;
+            }
+        } else {
+            printf("Invalid action! Try again.\n");
+        }
+
+        // Monster's turn to attack
+        if (monsterHealth > 0) {
+            int monsterDamage = rand() % 20 + 5;  // Random damage between 5 and 24
+            *playerHealth -= monsterDamage;
+            printf(RED "The monster attacks you for %d damage!\n" RESET, monsterDamage);
+            if (*playerHealth <= 0) {
+                printf(RED "You have died. Game Over!\n" RESET);
+                exit(0);
+            }
+        }
+
+        // Reset healing for the next round
+        if (healed == 1) {
+            healed = 0;  // Reset after the attack phase
         }
     }
-    return 0; // Room is new
 }
 
-void copyRoom(Room *dest, Room *src) {
-    strcpy(dest->description, src->description);
-    dest->hasMonster = src->hasMonster;
-    dest->monster = src->monster;
-    dest->hasItem = src->hasItem;
-    strcpy(dest->item, src->item);
+// Function to heal the player
+void heal(int *playerHealth) {
+    int healingAmount = rand() % 15 + 5;  // Random healing between 5 and 19
+    *playerHealth += healingAmount;
+    printf(GREEN "You healed for %d health!\n" RESET, healingAmount);
 }
