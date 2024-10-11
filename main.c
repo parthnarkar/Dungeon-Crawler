@@ -3,6 +3,12 @@
 //PS D:\DSA Mini Project\dungeon-crawler> gcc -o dungeon_crawler main.c                           
 //PS D:\DSA Mini Project\dungeon-crawler> ./dungeon_crawler
 
+//TO-DO:
+/*
+    one: randomised room description and inventory items
+    2: healing should be only once 
+    3:after attacking the monster one bug is coming of not appearing the options
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
